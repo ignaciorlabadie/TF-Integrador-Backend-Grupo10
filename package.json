@@ -1,37 +1,40 @@
 {
-  "name": "tfi-backend",
-  "version": "1.0.0",
-  "description": "",
-  "main": "dist/app.js",
-  "scripts": {
-    "test": "vitest",
-    "dev": "tsx watch src/app.ts",
-    "build": "tsc",
-    "start": "node dist/app.js",
-    "lint": "eslint .",
-    "format": "prettier . --write"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
-  "dependencies": {
-    "cors": "2.8.6",
-    "dotenv": "18.0.3",
-    "express": "5.2.1",
-    "pg": "8.23.0",
-    "pg-hstore": "2.3.4",
-    "sequelize": "6.37.8"
-  },
-  "devDependencies": {
-    "@eslint/js": "10.0.1",
-    "@types/express": "5.0.6",
-    "@types/node": "26.6.2",
-    "eslint": "10.11.0",
-    "prettier": "3.9.9",
-    "tsx": "4.23.15",
-    "typescript": "5.9.2",
-    "typescript-eslint": "8.70.1",
-    "vitest": "5.0.1"
-  }
+    "name": "tfi-backend",
+    "version": "1.0.0",
+    "description": "",
+    "main": "dist/app.js",
+    "scripts": {
+        "test": "vitest",
+        "dev": "tsx watch src/app.ts",
+        "build": "tsc",
+        "start": "node dist/app.js",
+        "lint": "eslint .",
+        "format": "prettier . --write",
+        "format:check": "prettier . --check",
+        "prepare": "husky"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "type": "module",
+    "dependencies": {
+        "cors": "2.8.6",
+        "dotenv": "18.0.3",
+        "express": "5.2.1",
+        "pg": "8.23.0",
+        "pg-hstore": "2.3.4",
+        "sequelize": "6.37.8"
+    },
+    "devDependencies": {
+        "@eslint/js": "10.0.1",
+        "@types/express": "5.0.6",
+        "@types/node": "26.6.2",
+        "eslint": "10.11.0",
+        "husky": "9.1.7",
+        "prettier": "3.9.9",
+        "tsx": "4.23.15",
+        "typescript": "5.9.2",
+        "typescript-eslint": "8.70.1",
+        "vitest": "5.0.1"
+    }
 }
