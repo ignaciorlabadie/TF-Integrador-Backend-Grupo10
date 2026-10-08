@@ -1,19 +1,21 @@
 import { DataTypes, Model } from 'sequelize'
 
-import sequelize from '../config/database.js'
+import type { EstadoTurno } from '../types/EstadoTurno.js'
 
-type EstadoTurno = 'pendiente' | 'confirmado' | 'cancelado' | 'completado'
+import sequelize from '../config/database.js'
 
 class Turno extends Model {
     declare id: number
 
-    declare profesionalId: number
     declare pacienteId: number
+    declare profesionalId: number
+    declare agendaId: number
 
     declare fecha: Date
     declare hora: Date
 
     declare estado: EstadoTurno
+    declare motivo: string
     declare observaciones?: string
 
     declare createdAt: Date
@@ -28,12 +30,17 @@ Turno.init(
             primaryKey: true,
         },
 
+        pacienteId: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+        },
+
         profesionalId: {
             type: DataTypes.INTEGER,
             allowNull: false,
         },
 
-        pacienteId: {
+        agendaId: {
             type: DataTypes.INTEGER,
             allowNull: false,
         },
@@ -57,6 +64,11 @@ Turno.init(
             ),
             allowNull: false,
             defaultValue: 'pendiente',
+        },
+
+        motivo: {
+            type: DataTypes.STRING,
+            allowNull: false,
         },
 
         observaciones: {
