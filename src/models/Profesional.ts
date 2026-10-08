@@ -4,23 +4,24 @@ import type { DatosPersona } from '../types/DatosPersona.js'
 
 import sequelize from '../config/database.js'
 
-class Paciente extends Model implements DatosPersona {
+class Profesional extends Model implements DatosPersona {
     declare id: number
+
     declare usuarioId: number
 
     declare nombre: string
     declare apellido: string
     declare dni: string
     declare telefono: string
+    declare matricula: string
 
-    declare fechaNacimiento: Date
-    declare direccion: string
+    declare especialidad: string
 
     declare createdAt: Date
     declare updatedAt: Date
 }
 
-Paciente.init(
+Profesional.init(
     {
         id: {
             type: DataTypes.INTEGER,
@@ -59,21 +60,22 @@ Paciente.init(
             allowNull: false,
         },
 
-        fechaNacimiento: {
-            type: DataTypes.DATEONLY,
+        matricula: {
+            type: DataTypes.STRING,
             allowNull: false,
+            unique: true,
         },
 
-        direccion: {
+        especialidad: {
             type: DataTypes.STRING,
             allowNull: false,
         },
     },
     {
         sequelize,
-        tableName: 'pacientes',
+        tableName: 'profesionales',
         timestamps: true,
     },
 )
 
-export default Paciente
+export default Profesional
