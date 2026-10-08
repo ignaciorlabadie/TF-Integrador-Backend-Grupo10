@@ -60,7 +60,7 @@ Paciente.init(
         },
 
         fechaNacimiento: {
-            type: DataTypes.DATE,
+            type: DataTypes.DATEONLY,
             allowNull: false,
         },
 
