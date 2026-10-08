@@ -5,15 +5,15 @@ import sequelize from '../config/database.js'
 class Profesional extends Model {
     declare id: number
 
+    declare usuarioId: number
+
     declare nombre: string
     declare apellido: string
     declare dni: string
+    declare telefono: string
     declare matricula: string
-    declare email: string
-    declare telefono?: string
 
-    declare especialidadId: number
-    declare activo: boolean
+    declare especialidad: string
 
     declare createdAt: Date
     declare updatedAt: Date
@@ -25,6 +25,12 @@ Profesional.init(
             type: DataTypes.INTEGER,
             autoIncrement: true,
             primaryKey: true,
+        },
+
+        usuarioId: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            unique: true,
         },
 
         nombre: {
@@ -43,35 +49,20 @@ Profesional.init(
             unique: true,
         },
 
+        telefono: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        },
+
         matricula: {
             type: DataTypes.STRING,
             allowNull: false,
             unique: true,
         },
 
-        email: {
+        especialidad: {
             type: DataTypes.STRING,
             allowNull: false,
-            unique: true,
-            validate: {
-                isEmail: true,
-            },
-        },
-
-        telefono: {
-            type: DataTypes.STRING,
-            allowNull: true,
-        },
-
-        especialidadId: {
-            type: DataTypes.INTEGER,
-            allowNull: false,
-        },
-
-        activo: {
-            type: DataTypes.BOOLEAN,
-            allowNull: false,
-            defaultValue: true,
         },
     },
     {
