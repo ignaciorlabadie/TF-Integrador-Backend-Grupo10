@@ -1,8 +1,10 @@
 import { DataTypes, Model } from 'sequelize'
 
+import type { DatosPersona } from '../types/DatosPersona.js'
+
 import sequelize from '../config/database.js'
 
-class Profesional extends Model {
+class Profesional extends Model implements DatosPersona {
     declare id: number
 
     declare usuarioId: number
@@ -31,6 +33,10 @@ Profesional.init(
             type: DataTypes.INTEGER,
             allowNull: false,
             unique: true,
+            references: {
+                model: 'users',
+                key: 'id',
+            },
         },
 
         nombre: {
