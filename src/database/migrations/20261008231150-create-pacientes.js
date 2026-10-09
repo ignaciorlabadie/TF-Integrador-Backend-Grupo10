@@ -18,22 +18,24 @@ module.exports = {
                     model: 'users',
                     key: 'id',
                 },
+                onUpdate: 'CASCADE',
+                onDelete: 'RESTRICT',
             },
             nombre: {
-                type: Sequelize.STRING,
+                type: Sequelize.STRING(100),
                 allowNull: false,
             },
             apellido: {
-                type: Sequelize.STRING,
+                type: Sequelize.STRING(100),
                 allowNull: false,
             },
             dni: {
-                type: Sequelize.STRING,
+                type: Sequelize.STRING(10),
                 allowNull: false,
                 unique: true,
             },
             telefono: {
-                type: Sequelize.STRING,
+                type: Sequelize.STRING(25),
                 allowNull: false,
             },
             fechaNacimiento: {
@@ -41,7 +43,7 @@ module.exports = {
                 allowNull: false,
             },
             direccion: {
-                type: Sequelize.STRING,
+                type: Sequelize.STRING(150),
                 allowNull: false,
             },
             createdAt: {
