@@ -1,7 +1,7 @@
 import { DataTypes, Model } from 'sequelize'
 
 import sequelize from '../config/database.js'
-import { Estado } from '../enums/Estado.js'
+import type { EstadoAutorizacionEstudio } from '../types/EstadoAutorizacionEstudio.js'
 
 class AutorizacionEstudio extends Model {
     declare id: number
@@ -9,7 +9,7 @@ class AutorizacionEstudio extends Model {
     declare profesionalId: number
     declare fechaAutorizacion: Date
     declare fechaVencimiento: Date
-    declare estado: Estado
+    declare estado: EstadoAutorizacionEstudio
 
     declare createdAt: Date
     declare updatedAt: Date
@@ -17,16 +17,19 @@ class AutorizacionEstudio extends Model {
     // Métodos de instancia según el diagrama UML
     public autorizarProfesional(profesionalId: number): void {
         this.profesionalId = profesionalId
-        this.estado = Estado.DISPONIBLE
+        this.estado = 'DISPONIBLE'
     }
 
     public revocarProfesional(): void {
-        this.estado = Estado.VENCIDO
+        this.estado = 'VENCIDO'
     }
 
     public estaVigente(): boolean {
         const hoy = new Date()
-        return this.estado === Estado.DISPONIBLE && new Date(this.fechaVencimiento) >= hoy
+        return (
+            this.estado === 'DISPONIBLE' &&
+            new Date(this.fechaVencimiento) >= hoy
+        )
     }
 
     public estaVencida(): boolean {
@@ -71,9 +74,9 @@ AutorizacionEstudio.init(
         },
 
         estado: {
-            type: DataTypes.ENUM(...Object.values(Estado)),
+            type: DataTypes.ENUM('DISPONIBLE', 'VENCIDO'),
             allowNull: false,
-            defaultValue: Estado.DISPONIBLE,
+            defaultValue: 'DISPONIBLE',
         },
     },
     {
