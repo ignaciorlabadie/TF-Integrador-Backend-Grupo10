@@ -4,7 +4,8 @@
     "description": "",
     "main": "dist/server.js",
     "scripts": {
-        "test": "vitest",
+        "test": "vitest run",
+        "test:watch": "vitest",
         "dev": "tsx watch src/server.ts",
         "build": "tsc",
         "start": "node dist/server.js",
@@ -25,17 +26,21 @@
         "node": "24.20.0"
     },
     "dependencies": {
+        "bcryptjs": "3.0.3",
         "cors": "2.8.6",
         "dotenv": "18.0.3",
         "express": "5.2.1",
+        "jsonwebtoken": "9.0.3",
         "pg": "8.23.0",
         "pg-hstore": "2.3.4",
         "sequelize": "6.37.8"
     },
     "devDependencies": {
         "@eslint/js": "10.0.1",
+        "@types/bcryptjs": "2.4.6",
         "@types/cors": "2.8.19",
         "@types/express": "5.0.6",
+        "@types/jsonwebtoken": "9.0.10",
         "@types/node": "26.6.2",
         "eslint": "10.11.0",
         "husky": "9.1.7",
