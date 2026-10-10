@@ -2,11 +2,13 @@ import 'dotenv/config'
 import cors from 'cors'
 import express from 'express'
 import sequelize from './config/database.js'
+import routes from './routes/index.js'
 
 const app = express()
 
 app.use(cors())
 app.use(express.json())
+app.use(routes)
 
 app.get('/health', async (_req, res) => {
     try {
