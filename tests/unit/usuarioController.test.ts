@@ -8,6 +8,7 @@ vi.mock('../../src/services/usuarioService.js', () => ({
     crearUsuario: vi.fn(),
     actualizarUsuario: vi.fn(),
     desactivarUsuario: vi.fn(),
+    reactivarUsuario: vi.fn(),
 }))
 
 import {
@@ -17,6 +18,7 @@ import {
     crearUsuario,
     actualizarUsuario,
     desactivarUsuario,
+    reactivarUsuario,
 } from '../../src/services/usuarioService.js'
 
 import {
@@ -26,12 +28,24 @@ import {
     registrarUsuario,
     modificarUsuario,
     desactivarUsuarioController,
+    reactivarUsuarioController,
 } from '../../src/controllers/usuarioController.js'
 
-function crearMocks(body: object = {}, params: Record<string, string> = {}) {
+type UsuarioToken = {
+    id: number
+    email: string
+    rol: 'PACIENTE' | 'PROFESIONAL' | 'ADMIN'
+}
+
+function crearMocks(
+    body: object = {},
+    params: Record<string, string> = {},
+    usuario?: UsuarioToken,
+) {
     const req = {
         body,
         params,
+        usuario,
     } as unknown as Request
 
     const res = {
@@ -58,14 +72,13 @@ describe('usuarioController', () => {
         expect(res.json).toHaveBeenCalledWith([])
     })
 
-    it('debe devolver 500 si falla el listado', async () => {
+    it('debe propagar el error si falla el listado', async () => {
         vi.mocked(listarUsuarios).mockRejectedValue(new Error('Error de DB'))
 
         const { req, res } = crearMocks()
 
-        await obtenerUsuarios(req, res)
-
-        expect(res.status).toHaveBeenCalledWith(500)
+        await expect(obtenerUsuarios(req, res)).rejects.toThrow('Error de DB')
+        expect(res.status).not.toHaveBeenCalled()
     })
 
     it('debe buscar un usuario por ID', async () => {
@@ -90,9 +103,10 @@ describe('usuarioController', () => {
     it('debe rechazar un ID inválido', async () => {
         const { req, res } = crearMocks({}, { id: 'abc' })
 
-        await obtenerUsuarioPorId(req, res)
+        await expect(obtenerUsuarioPorId(req, res)).rejects.toMatchObject({
+            statusCode: 400,
+        })
 
-        expect(res.status).toHaveBeenCalledWith(400)
         expect(buscarUsuarioPorId).not.toHaveBeenCalled()
     })
 
@@ -101,9 +115,9 @@ describe('usuarioController', () => {
 
         const { req, res } = crearMocks({}, { id: '999' })
 
-        await obtenerUsuarioPorId(req, res)
-
-        expect(res.status).toHaveBeenCalledWith(404)
+        await expect(obtenerUsuarioPorId(req, res)).rejects.toMatchObject({
+            statusCode: 404,
+        })
     })
 
     it('debe buscar un usuario por email', async () => {
@@ -142,9 +156,9 @@ describe('usuarioController', () => {
             },
         )
 
-        await obtenerUsuarioPorEmail(req, res)
-
-        expect(res.status).toHaveBeenCalledWith(404)
+        await expect(obtenerUsuarioPorEmail(req, res)).rejects.toMatchObject({
+            statusCode: 404,
+        })
     })
 
     it('debe registrar un usuario', async () => {
@@ -159,7 +173,7 @@ describe('usuarioController', () => {
 
         const { req, res } = crearMocks({
             email: 'usuario@example.com',
-            password: '123456',
+            password: '12345678',
             rol: 'PACIENTE',
         })
 
@@ -167,33 +181,39 @@ describe('usuarioController', () => {
 
         expect(crearUsuario).toHaveBeenCalledWith({
             email: 'usuario@example.com',
-            password: '123456',
+            password: '12345678',
             rol: 'PACIENTE',
         })
         expect(res.status).toHaveBeenCalledWith(201)
         expect(res.json).toHaveBeenCalledWith(usuario)
     })
 
-    it('debe registrar un usuario con rol PACIENTE', async () => {
-        const usuarioCreado = {
-            id: 1,
-            email: 'paciente@test.com',
-            rol: 'PACIENTE',
-            activo: true,
-        }
-
-        vi.mocked(crearUsuario).mockResolvedValue(usuarioCreado as never)
-
+    it('debe rechazar un email inválido al registrar', async () => {
         const { req, res } = crearMocks({
-            email: 'paciente@test.com',
-            password: 'Password123!',
+            email: 'no-es-un-email',
+            password: '12345678',
             rol: 'PACIENTE',
         })
 
-        await registrarUsuario(req, res)
+        await expect(registrarUsuario(req, res)).rejects.toMatchObject({
+            statusCode: 400,
+        })
 
-        expect(crearUsuario).toHaveBeenCalledOnce()
-        expect(res.status).toHaveBeenCalledWith(201)
+        expect(crearUsuario).not.toHaveBeenCalled()
+    })
+
+    it('debe rechazar una contraseña corta al registrar', async () => {
+        const { req, res } = crearMocks({
+            email: 'usuario@example.com',
+            password: 'corta',
+            rol: 'PACIENTE',
+        })
+
+        await expect(registrarUsuario(req, res)).rejects.toMatchObject({
+            statusCode: 400,
+        })
+
+        expect(crearUsuario).not.toHaveBeenCalled()
     })
 
     it.each(['ADMIN', 'PROFESIONAL'])(
@@ -205,9 +225,10 @@ describe('usuarioController', () => {
                 rol,
             })
 
-            await registrarUsuario(req, res)
+            await expect(registrarUsuario(req, res)).rejects.toMatchObject({
+                statusCode: 400,
+            })
 
-            expect(res.status).toHaveBeenCalledWith(400)
             expect(crearUsuario).not.toHaveBeenCalled()
         },
     )
@@ -215,33 +236,36 @@ describe('usuarioController', () => {
     it('debe rechazar datos inválidos al registrar', async () => {
         const { req, res } = crearMocks({
             email: '',
-            password: '123456',
+            password: '12345678',
             rol: 'PACIENTE',
         })
 
-        await registrarUsuario(req, res)
+        await expect(registrarUsuario(req, res)).rejects.toMatchObject({
+            statusCode: 400,
+        })
 
-        expect(res.status).toHaveBeenCalledWith(400)
         expect(crearUsuario).not.toHaveBeenCalled()
     })
 
     it('debe devolver 409 si el email ya está registrado', async () => {
         vi.mocked(crearUsuario).mockRejectedValue(
-            new Error('El email ya está registrado'),
+            Object.assign(new Error('El email ya está registrado'), {
+                statusCode: 409,
+            }),
         )
 
         const { req, res } = crearMocks({
             email: 'usuario@example.com',
-            password: '123456',
+            password: '12345678',
             rol: 'PACIENTE',
         })
 
-        await registrarUsuario(req, res)
-
-        expect(res.status).toHaveBeenCalledWith(409)
+        await expect(registrarUsuario(req, res)).rejects.toMatchObject({
+            statusCode: 409,
+        })
     })
 
-    it('debe actualizar un usuario', async () => {
+    it('debe actualizar un usuario como administrador', async () => {
         const usuario = {
             id: 1,
             email: 'usuario@example.com',
@@ -250,37 +274,88 @@ describe('usuarioController', () => {
 
         vi.mocked(actualizarUsuario).mockResolvedValue(usuario as never)
 
-        const { req, res } = crearMocks({ activo: false }, { id: '1' })
+        const { req, res } = crearMocks(
+            { activo: false },
+            { id: '1' },
+            { id: 99, email: 'admin@test.com', rol: 'ADMIN' },
+        )
 
         await modificarUsuario(req, res)
 
         expect(actualizarUsuario).toHaveBeenCalledWith(1, {
             email: undefined,
             activo: false,
+            password: undefined,
         })
         expect(res.status).toHaveBeenCalledWith(200)
         expect(res.json).toHaveBeenCalledWith(usuario)
     })
 
-    it('debe rechazar una actualización sin datos', async () => {
-        const { req, res } = crearMocks({}, { id: '1' })
+    it('debe permitir al propio usuario cambiar su contraseña', async () => {
+        const usuario = {
+            id: 1,
+            email: 'usuario@example.com',
+            activo: true,
+        }
+
+        vi.mocked(actualizarUsuario).mockResolvedValue(usuario as never)
+
+        const { req, res } = crearMocks(
+            { password: '12345678' },
+            { id: '1' },
+            { id: 1, email: 'usuario@example.com', rol: 'PACIENTE' },
+        )
 
         await modificarUsuario(req, res)
 
-        expect(res.status).toHaveBeenCalledWith(400)
+        expect(actualizarUsuario).toHaveBeenCalledWith(1, {
+            email: undefined,
+            activo: undefined,
+            password: '12345678',
+        })
+        expect(res.status).toHaveBeenCalledWith(200)
+    })
+
+    it('debe impedir que un usuario no admin modifique el campo activo', async () => {
+        const { req, res } = crearMocks(
+            { activo: false },
+            { id: '1' },
+            { id: 1, email: 'usuario@example.com', rol: 'PACIENTE' },
+        )
+
+        await expect(modificarUsuario(req, res)).rejects.toMatchObject({
+            statusCode: 403,
+        })
+
+        expect(actualizarUsuario).not.toHaveBeenCalled()
+    })
+
+    it('debe rechazar una actualización sin datos', async () => {
+        const { req, res } = crearMocks({}, { id: '1' })
+
+        await expect(modificarUsuario(req, res)).rejects.toMatchObject({
+            statusCode: 400,
+        })
+
         expect(actualizarUsuario).not.toHaveBeenCalled()
     })
 
     it('debe devolver 404 al actualizar un usuario inexistente', async () => {
         vi.mocked(actualizarUsuario).mockRejectedValue(
-            new Error('Usuario no encontrado'),
+            Object.assign(new Error('Usuario no encontrado'), {
+                statusCode: 404,
+            }),
         )
 
-        const { req, res } = crearMocks({ activo: false }, { id: '999' })
+        const { req, res } = crearMocks(
+            { activo: false },
+            { id: '999' },
+            { id: 99, email: 'admin@test.com', rol: 'ADMIN' },
+        )
 
-        await modificarUsuario(req, res)
-
-        expect(res.status).toHaveBeenCalledWith(404)
+        await expect(modificarUsuario(req, res)).rejects.toMatchObject({
+            statusCode: 404,
+        })
     })
 
     it('debe desactivar un usuario', async () => {
@@ -303,25 +378,75 @@ describe('usuarioController', () => {
 
     it('debe devolver 404 al desactivar un usuario inexistente', async () => {
         vi.mocked(desactivarUsuario).mockRejectedValue(
-            new Error('Usuario no encontrado'),
+            Object.assign(new Error('Usuario no encontrado'), {
+                statusCode: 404,
+            }),
         )
 
         const { req, res } = crearMocks({}, { id: '999' })
 
-        await desactivarUsuarioController(req, res)
-
-        expect(res.status).toHaveBeenCalledWith(404)
+        await expect(
+            desactivarUsuarioController(req, res),
+        ).rejects.toMatchObject({ statusCode: 404 })
     })
 
     it('debe devolver 409 si el usuario ya está desactivado', async () => {
         vi.mocked(desactivarUsuario).mockRejectedValue(
-            new Error('El usuario ya está desactivado'),
+            Object.assign(new Error('El usuario ya está desactivado'), {
+                statusCode: 409,
+            }),
         )
 
         const { req, res } = crearMocks({}, { id: '1' })
 
-        await desactivarUsuarioController(req, res)
+        await expect(
+            desactivarUsuarioController(req, res),
+        ).rejects.toMatchObject({ statusCode: 409 })
+    })
 
-        expect(res.status).toHaveBeenCalledWith(409)
+    it('debe reactivar un usuario', async () => {
+        const usuario = {
+            id: 1,
+            email: 'usuario@example.com',
+            activo: true,
+        }
+
+        vi.mocked(reactivarUsuario).mockResolvedValue(usuario as never)
+
+        const { req, res } = crearMocks({}, { id: '1' })
+
+        await reactivarUsuarioController(req, res)
+
+        expect(reactivarUsuario).toHaveBeenCalledWith(1)
+        expect(res.status).toHaveBeenCalledWith(200)
+        expect(res.json).toHaveBeenCalledWith(usuario)
+    })
+
+    it('debe devolver 404 al reactivar un usuario inexistente', async () => {
+        vi.mocked(reactivarUsuario).mockRejectedValue(
+            Object.assign(new Error('Usuario no encontrado'), {
+                statusCode: 404,
+            }),
+        )
+
+        const { req, res } = crearMocks({}, { id: '999' })
+
+        await expect(
+            reactivarUsuarioController(req, res),
+        ).rejects.toMatchObject({ statusCode: 404 })
+    })
+
+    it('debe devolver 409 si el usuario ya está activo', async () => {
+        vi.mocked(reactivarUsuario).mockRejectedValue(
+            Object.assign(new Error('El usuario ya está activo'), {
+                statusCode: 409,
+            }),
+        )
+
+        const { req, res } = crearMocks({}, { id: '1' })
+
+        await expect(
+            reactivarUsuarioController(req, res),
+        ).rejects.toMatchObject({ statusCode: 409 })
     })
 })

@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express'
 
 import { iniciarSesion } from '../services/authService.js'
+import { buscarUsuarioPorId } from '../services/usuarioService.js'
+import { AppError } from '../errors/AppError.js'
 
 export async function login(req: Request, res: Response) {
     const { email, password } = req.body
@@ -11,32 +13,26 @@ export async function login(req: Request, res: Response) {
         !email.trim() ||
         !password
     ) {
-        return res.status(400).json({
-            mensaje: 'Email y contraseña son obligatorios',
-        })
+        throw new AppError(400, 'Email y contraseña son obligatorios')
     }
 
-    try {
-        const resultado = await iniciarSesion(email, password)
+    const resultado = await iniciarSesion(email, password)
 
-        return res.status(200).json(resultado)
-    } catch (error) {
-        if (error instanceof Error) {
-            if (error.message === 'Credenciales inválidas') {
-                return res.status(401).json({
-                    mensaje: 'Email o contraseña incorrectos',
-                })
-            }
+    return res.status(200).json(resultado)
+}
 
-            if (error.message === 'Usuario desactivado') {
-                return res.status(403).json({
-                    mensaje: 'El usuario está desactivado',
-                })
-            }
-        }
+export async function obtenerPerfil(req: Request, res: Response) {
+    const id = req.usuario?.id
 
-        return res.status(500).json({
-            mensaje: 'Error interno del servidor',
-        })
+    if (id === undefined) {
+        throw new AppError(401, 'Autenticación requerida')
     }
+
+    const usuario = await buscarUsuarioPorId(id)
+
+    if (!usuario) {
+        throw new AppError(404, 'Usuario no encontrado')
+    }
+
+    return res.status(200).json(usuario)
 }

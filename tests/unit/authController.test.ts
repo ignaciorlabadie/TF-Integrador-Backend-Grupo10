@@ -5,13 +5,22 @@ vi.mock('../../src/services/authService.js', () => ({
     iniciarSesion: vi.fn(),
 }))
 
-import { iniciarSesion } from '../../src/services/authService.js'
-import { login } from '../../src/controllers/authController.js'
+vi.mock('../../src/services/usuarioService.js', () => ({
+    buscarUsuarioPorId: vi.fn(),
+}))
 
-function crearMocks(body: object) {
+import { iniciarSesion } from '../../src/services/authService.js'
+import { buscarUsuarioPorId } from '../../src/services/usuarioService.js'
+import { login, obtenerPerfil } from '../../src/controllers/authController.js'
+
+function crearMocks(
+    body: object = {},
+    usuario?: { id: number; email: string; rol: string },
+) {
     const req = {
         body,
-    } as Request
+        usuario,
+    } as unknown as Request
 
     const res = {
         status: vi.fn().mockReturnThis(),
@@ -39,14 +48,14 @@ describe('authController', () => {
 
         const { req, res } = crearMocks({
             email: 'usuario@example.com',
-            password: '123456',
+            password: '12345678',
         })
 
         await login(req, res)
 
         expect(iniciarSesion).toHaveBeenCalledWith(
             'usuario@example.com',
-            '123456',
+            '12345678',
         )
 
         expect(res.status).toHaveBeenCalledWith(200)
@@ -66,42 +75,45 @@ describe('authController', () => {
             email: 'usuario@example.com',
         })
 
-        await login(req, res)
-
-        expect(res.status).toHaveBeenCalledWith(400)
-        expect(res.json).toHaveBeenCalledWith({
-            mensaje: 'Email y contraseña son obligatorios',
+        await expect(login(req, res)).rejects.toMatchObject({
+            statusCode: 400,
+            message: 'Email y contraseña son obligatorios',
         })
+
         expect(iniciarSesion).not.toHaveBeenCalled()
     })
 
     it('debe rechazar un email vacío', async () => {
         const { req, res } = crearMocks({
             email: '   ',
-            password: '123456',
+            password: '12345678',
         })
 
-        await login(req, res)
+        await expect(login(req, res)).rejects.toMatchObject({
+            statusCode: 400,
+        })
 
-        expect(res.status).toHaveBeenCalledWith(400)
         expect(iniciarSesion).not.toHaveBeenCalled()
     })
 
     it('debe rechazar campos que no sean cadenas', async () => {
         const { req, res } = crearMocks({
             email: 123,
-            password: '123456',
+            password: '12345678',
         })
 
-        await login(req, res)
+        await expect(login(req, res)).rejects.toMatchObject({
+            statusCode: 400,
+        })
 
-        expect(res.status).toHaveBeenCalledWith(400)
         expect(iniciarSesion).not.toHaveBeenCalled()
     })
 
     it('debe devolver 401 si las credenciales son incorrectas', async () => {
         vi.mocked(iniciarSesion).mockRejectedValue(
-            new Error('Credenciales inválidas'),
+            Object.assign(new Error('Email o contraseña incorrectos'), {
+                statusCode: 401,
+            }),
         )
 
         const { req, res } = crearMocks({
@@ -109,47 +121,84 @@ describe('authController', () => {
             password: 'incorrecta',
         })
 
-        await login(req, res)
-
-        expect(res.status).toHaveBeenCalledWith(401)
-        expect(res.json).toHaveBeenCalledWith({
-            mensaje: 'Email o contraseña incorrectos',
+        await expect(login(req, res)).rejects.toMatchObject({
+            statusCode: 401,
         })
     })
 
     it('debe devolver 403 si el usuario está desactivado', async () => {
         vi.mocked(iniciarSesion).mockRejectedValue(
-            new Error('Usuario desactivado'),
+            Object.assign(new Error('El usuario está desactivado'), {
+                statusCode: 403,
+            }),
         )
 
         const { req, res } = crearMocks({
             email: 'usuario@example.com',
-            password: '123456',
+            password: '12345678',
         })
 
-        await login(req, res)
-
-        expect(res.status).toHaveBeenCalledWith(403)
-        expect(res.json).toHaveBeenCalledWith({
-            mensaje: 'El usuario está desactivado',
+        await expect(login(req, res)).rejects.toMatchObject({
+            statusCode: 403,
         })
     })
 
-    it('debe devolver 500 ante un error inesperado', async () => {
+    it('debe propagar un error inesperado', async () => {
         vi.mocked(iniciarSesion).mockRejectedValue(
             new Error('Error de conexión con la base de datos'),
         )
 
         const { req, res } = crearMocks({
             email: 'usuario@example.com',
-            password: '123456',
+            password: '12345678',
         })
 
-        await login(req, res)
+        await expect(login(req, res)).rejects.toThrow(
+            'Error de conexión con la base de datos',
+        )
+    })
 
-        expect(res.status).toHaveBeenCalledWith(500)
-        expect(res.json).toHaveBeenCalledWith({
-            mensaje: 'Error interno del servidor',
+    it('debe devolver el perfil del usuario autenticado', async () => {
+        const usuario = {
+            id: 1,
+            email: 'usuario@example.com',
+            rol: 'PACIENTE',
+            activo: true,
+        }
+
+        vi.mocked(buscarUsuarioPorId).mockResolvedValue(usuario as never)
+
+        const { req, res } = crearMocks({}, usuario)
+
+        await obtenerPerfil(req, res)
+
+        expect(buscarUsuarioPorId).toHaveBeenCalledWith(1)
+        expect(res.status).toHaveBeenCalledWith(200)
+        expect(res.json).toHaveBeenCalledWith(usuario)
+    })
+
+    it('debe devolver 401 si no hay usuario autenticado', async () => {
+        const { req, res } = crearMocks()
+
+        await expect(obtenerPerfil(req, res)).rejects.toMatchObject({
+            statusCode: 401,
+        })
+    })
+
+    it('debe devolver 404 si el perfil no existe', async () => {
+        vi.mocked(buscarUsuarioPorId).mockResolvedValue(null)
+
+        const { req, res } = crearMocks(
+            {},
+            {
+                id: 1,
+                email: 'usuario@example.com',
+                rol: 'PACIENTE',
+            },
+        )
+
+        await expect(obtenerPerfil(req, res)).rejects.toMatchObject({
+            statusCode: 404,
         })
     })
 })

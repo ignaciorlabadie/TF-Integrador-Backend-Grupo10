@@ -7,10 +7,14 @@ import {
     registrarUsuario,
     modificarUsuario,
     desactivarUsuarioController,
+    reactivarUsuarioController,
 } from '../controllers/usuarioController.js'
 
 import { verificarToken } from '../middlewares/authMiddleware.js'
-import { verificarRol } from '../middlewares/rolMiddleware.js'
+import {
+    verificarRol,
+    verificarAdminOPropio,
+} from '../middlewares/rolMiddleware.js'
 
 const router = Router()
 
@@ -25,15 +29,22 @@ router.get(
     obtenerUsuarioPorEmail,
 )
 
-router.get('/:id', verificarToken, obtenerUsuarioPorId)
+router.get('/:id', verificarToken, verificarAdminOPropio, obtenerUsuarioPorId)
 
-router.put('/:id', verificarToken, verificarRol('ADMIN'), modificarUsuario)
+router.put('/:id', verificarToken, verificarAdminOPropio, modificarUsuario)
 
 router.patch(
     '/:id/desactivar',
     verificarToken,
     verificarRol('ADMIN'),
     desactivarUsuarioController,
+)
+
+router.patch(
+    '/:id/reactivar',
+    verificarToken,
+    verificarRol('ADMIN'),
+    reactivarUsuarioController,
 )
 
 export default router
