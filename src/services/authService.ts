@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 
 import Usuario from '../models/Usuario.js'
+import { AppError } from '../errors/AppError.js'
 
 export async function iniciarSesion(email: string, password: string) {
     const emailNormalizado = email.trim().toLowerCase()
@@ -11,24 +12,26 @@ export async function iniciarSesion(email: string, password: string) {
     })
 
     if (!usuario) {
-        throw new Error('Credenciales inválidas')
+        throw new AppError(401, 'Email o contraseña incorrectos')
     }
 
     if (!usuario.activo) {
-        throw new Error('Usuario desactivado')
+        throw new AppError(403, 'El usuario está desactivado')
     }
 
     const passwordValida = await bcrypt.compare(password, usuario.password)
 
     if (!passwordValida) {
-        throw new Error('Credenciales inválidas')
+        throw new AppError(401, 'Email o contraseña incorrectos')
     }
 
     const jwtSecret = process.env.JWT_SECRET
 
     if (!jwtSecret) {
-        throw new Error('JWT_SECRET no está configurado')
+        throw new AppError(500, 'JWT_SECRET no está configurado')
     }
+
+    const expiresIn = process.env.JWT_EXPIRES_IN || '1d'
 
     const token = jwt.sign(
         {
@@ -37,7 +40,7 @@ export async function iniciarSesion(email: string, password: string) {
             rol: usuario.rol,
         },
         jwtSecret,
-        { expiresIn: '1d' },
+        { expiresIn: expiresIn as NonNullable<jwt.SignOptions['expiresIn']> },
     )
 
     return {

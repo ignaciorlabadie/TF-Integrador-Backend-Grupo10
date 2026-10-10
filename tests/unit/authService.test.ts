@@ -68,7 +68,10 @@ describe('authService', () => {
 
         await expect(
             iniciarSesion(' Usuario@Example.com ', '123456'),
-        ).rejects.toThrow('Credenciales inválidas')
+        ).rejects.toMatchObject({
+            statusCode: 401,
+            message: 'Email o contraseña incorrectos',
+        })
 
         expect(Usuario.findOne).toHaveBeenCalledWith({
             where: { email: 'usuario@example.com' },
@@ -80,7 +83,7 @@ describe('authService', () => {
 
         await expect(
             iniciarSesion('usuario@example.com', '123456'),
-        ).rejects.toThrow('Credenciales inválidas')
+        ).rejects.toMatchObject({ statusCode: 401 })
 
         expect(bcrypt.compare).not.toHaveBeenCalled()
     })
@@ -98,7 +101,7 @@ describe('authService', () => {
 
         await expect(
             iniciarSesion('usuario@example.com', 'incorrecta'),
-        ).rejects.toThrow('Credenciales inválidas')
+        ).rejects.toMatchObject({ statusCode: 401 })
 
         expect(jwt.sign).not.toHaveBeenCalled()
     })
@@ -114,7 +117,10 @@ describe('authService', () => {
 
         await expect(
             iniciarSesion('usuario@example.com', '123456'),
-        ).rejects.toThrow('Usuario desactivado')
+        ).rejects.toMatchObject({
+            statusCode: 403,
+            message: 'El usuario está desactivado',
+        })
 
         expect(bcrypt.compare).not.toHaveBeenCalled()
         expect(jwt.sign).not.toHaveBeenCalled()
@@ -135,8 +141,34 @@ describe('authService', () => {
 
         await expect(
             iniciarSesion('usuario@example.com', '123456'),
-        ).rejects.toThrow('JWT_SECRET no está configurado')
+        ).rejects.toMatchObject({
+            statusCode: 500,
+            message: 'JWT_SECRET no está configurado',
+        })
 
         expect(jwt.sign).not.toHaveBeenCalled()
+    })
+
+    it('debe firmar el token con el JWT_EXPIRES_IN del entorno', async () => {
+        vi.stubEnv('JWT_EXPIRES_IN', '2h')
+
+        vi.mocked(Usuario.findOne).mockResolvedValue({
+            id: 1,
+            email: 'usuario@example.com',
+            password: 'hash',
+            rol: 'PACIENTE',
+            activo: true,
+        } as never)
+
+        vi.mocked(bcrypt.compare).mockResolvedValue(true as never)
+        vi.mocked(jwt.sign).mockReturnValue('token-de-prueba' as never)
+
+        await iniciarSesion('usuario@example.com', '123456')
+
+        expect(jwt.sign).toHaveBeenCalledWith(
+            { id: 1, email: 'usuario@example.com', rol: 'PACIENTE' },
+            'secreto-de-prueba',
+            { expiresIn: '2h' },
+        )
     })
 })
