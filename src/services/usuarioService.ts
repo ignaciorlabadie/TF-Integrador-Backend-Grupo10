@@ -2,6 +2,7 @@ import Usuario from '../models/Usuario.js'
 import bcrypt from 'bcryptjs'
 import type { CrearUsuario } from '../types/CrearUsuario.js'
 import type { ActualizarUsuario } from '../types/ActualizarUsuario.js'
+import { AppError } from '../errors/AppError.js'
 
 export async function listarUsuarios() {
     return Usuario.findAll({
@@ -32,7 +33,7 @@ export async function crearUsuario(datos: CrearUsuario) {
     })
 
     if (usuarioExistente) {
-        throw new Error('El email ya está registrado')
+        throw new AppError(409, 'El email ya está registrado')
     }
 
     const passwordHasheada = await bcrypt.hash(datos.password, 10)
@@ -55,7 +56,7 @@ export async function actualizarUsuario(id: number, datos: ActualizarUsuario) {
     const usuario = await Usuario.findByPk(id)
 
     if (!usuario) {
-        throw new Error('Usuario no encontrado')
+        throw new AppError(404, 'Usuario no encontrado')
     }
 
     if (datos.email !== undefined) {
@@ -66,7 +67,7 @@ export async function actualizarUsuario(id: number, datos: ActualizarUsuario) {
         })
 
         if (usuarioExistente && usuarioExistente.id !== id) {
-            throw new Error('El email ya está registrado')
+            throw new AppError(409, 'El email ya está registrado')
         }
 
         usuario.email = email
@@ -74,6 +75,10 @@ export async function actualizarUsuario(id: number, datos: ActualizarUsuario) {
 
     if (datos.activo !== undefined) {
         usuario.activo = datos.activo
+    }
+
+    if (datos.password !== undefined) {
+        usuario.password = await bcrypt.hash(datos.password, 10)
     }
 
     await usuario.save()
@@ -88,14 +93,34 @@ export async function desactivarUsuario(id: number) {
     const usuario = await Usuario.findByPk(id)
 
     if (!usuario) {
-        throw new Error('Usuario no encontrado')
+        throw new AppError(404, 'Usuario no encontrado')
     }
 
     if (!usuario.activo) {
-        throw new Error('El usuario ya está desactivado')
+        throw new AppError(409, 'El usuario ya está desactivado')
     }
 
     usuario.activo = false
+
+    await usuario.save()
+
+    return Usuario.findByPk(id, {
+        attributes: { exclude: ['password'] },
+    })
+}
+
+export async function reactivarUsuario(id: number) {
+    const usuario = await Usuario.findByPk(id)
+
+    if (!usuario) {
+        throw new AppError(404, 'Usuario no encontrado')
+    }
+
+    if (usuario.activo) {
+        throw new AppError(409, 'El usuario ya está activo')
+    }
+
+    usuario.activo = true
 
     await usuario.save()
 

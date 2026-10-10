@@ -25,6 +25,7 @@ import {
     crearUsuario,
     actualizarUsuario,
     desactivarUsuario,
+    reactivarUsuario,
 } from '../../src/services/usuarioService.js'
 
 beforeEach(() => {
@@ -76,7 +77,7 @@ describe('usuarioService', () => {
 
         const resultado = await crearUsuario({
             email: 'usuario@example.com',
-            password: '123456',
+            password: '12345678',
             rol: 'PACIENTE',
         })
 
@@ -93,7 +94,7 @@ describe('usuarioService', () => {
             rol: 'PACIENTE',
         })
 
-        expect(bcrypt.hash).toHaveBeenCalledWith('123456', 10)
+        expect(bcrypt.hash).toHaveBeenCalledWith('12345678', 10)
     })
 
     it('debe rechazar un email ya registrado al crear', async () => {
@@ -105,10 +106,13 @@ describe('usuarioService', () => {
         await expect(
             crearUsuario({
                 email: 'usuario@example.com',
-                password: '123456',
+                password: '12345678',
                 rol: 'PACIENTE',
             }),
-        ).rejects.toThrow('El email ya está registrado')
+        ).rejects.toMatchObject({
+            statusCode: 409,
+            message: 'El email ya está registrado',
+        })
 
         expect(Usuario.create).not.toHaveBeenCalled()
     })
@@ -125,7 +129,7 @@ describe('usuarioService', () => {
 
         await crearUsuario({
             email: '  Usuario@Example.com  ',
-            password: '123456',
+            password: '12345678',
             rol: 'PACIENTE',
         })
 
@@ -155,12 +159,37 @@ describe('usuarioService', () => {
         expect(resultado).toBeDefined()
     })
 
+    it('debe hashear la contraseña al actualizarla', async () => {
+        const usuario = {
+            id: 1,
+            email: 'usuario@example.com',
+            password: 'hash-viejo',
+            activo: true,
+            save: vi.fn(),
+        }
+
+        vi.mocked(Usuario.findByPk)
+            .mockResolvedValueOnce(usuario as never)
+            .mockResolvedValueOnce(usuario as never)
+
+        vi.mocked(bcrypt.hash).mockResolvedValue('hash-nuevo' as never)
+
+        await actualizarUsuario(1, { password: '12345678' })
+
+        expect(bcrypt.hash).toHaveBeenCalledWith('12345678', 10)
+        expect(usuario.password).toBe('hash-nuevo')
+        expect(usuario.save).toHaveBeenCalled()
+    })
+
     it('debe rechazar la actualización si el usuario no existe', async () => {
         vi.mocked(Usuario.findByPk).mockResolvedValue(null)
 
-        await expect(actualizarUsuario(999, { activo: false })).rejects.toThrow(
-            'Usuario no encontrado',
-        )
+        await expect(
+            actualizarUsuario(999, { activo: false }),
+        ).rejects.toMatchObject({
+            statusCode: 404,
+            message: 'Usuario no encontrado',
+        })
     })
 
     it('debe rechazar un email perteneciente a otro usuario', async () => {
@@ -182,7 +211,10 @@ describe('usuarioService', () => {
             actualizarUsuario(1, {
                 email: 'otro@example.com',
             }),
-        ).rejects.toThrow('El email ya está registrado')
+        ).rejects.toMatchObject({
+            statusCode: 409,
+            message: 'El email ya está registrado',
+        })
 
         expect(usuario.save).not.toHaveBeenCalled()
     })
@@ -208,9 +240,10 @@ describe('usuarioService', () => {
     it('debe rechazar la desactivación si el usuario no existe', async () => {
         vi.mocked(Usuario.findByPk).mockResolvedValue(null)
 
-        await expect(desactivarUsuario(999)).rejects.toThrow(
-            'Usuario no encontrado',
-        )
+        await expect(desactivarUsuario(999)).rejects.toMatchObject({
+            statusCode: 404,
+            message: 'Usuario no encontrado',
+        })
     })
 
     it('debe rechazar la desactivación de un usuario ya desactivado', async () => {
@@ -222,9 +255,54 @@ describe('usuarioService', () => {
 
         vi.mocked(Usuario.findByPk).mockResolvedValue(usuario as never)
 
-        await expect(desactivarUsuario(1)).rejects.toThrow(
-            'El usuario ya está desactivado',
-        )
+        await expect(desactivarUsuario(1)).rejects.toMatchObject({
+            statusCode: 409,
+            message: 'El usuario ya está desactivado',
+        })
+
+        expect(usuario.save).not.toHaveBeenCalled()
+    })
+
+    it('debe reactivar un usuario', async () => {
+        const usuario = {
+            id: 1,
+            activo: false,
+            save: vi.fn(),
+        }
+
+        vi.mocked(Usuario.findByPk)
+            .mockResolvedValueOnce(usuario as never)
+            .mockResolvedValueOnce(usuario as never)
+
+        const resultado = await reactivarUsuario(1)
+
+        expect(usuario.activo).toBe(true)
+        expect(usuario.save).toHaveBeenCalled()
+        expect(resultado).toBeDefined()
+    })
+
+    it('debe rechazar la reactivación si el usuario no existe', async () => {
+        vi.mocked(Usuario.findByPk).mockResolvedValue(null)
+
+        await expect(reactivarUsuario(999)).rejects.toMatchObject({
+            statusCode: 404,
+            message: 'Usuario no encontrado',
+        })
+    })
+
+    it('debe rechazar la reactivación de un usuario ya activo', async () => {
+        const usuario = {
+            id: 1,
+            activo: true,
+            save: vi.fn(),
+        }
+
+        vi.mocked(Usuario.findByPk).mockResolvedValue(usuario as never)
+
+        await expect(reactivarUsuario(1)).rejects.toMatchObject({
+            statusCode: 409,
+            message: 'El usuario ya está activo',
+        })
 
         expect(usuario.save).not.toHaveBeenCalled()
     })
